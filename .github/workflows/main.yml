@@ -6,14 +6,14 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to EC2 on master branch push
+    name: Deploy to EC2 on main branch push
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout the files
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Deploy to Server 1
+      - name: Deploy files to EC2
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
@@ -21,16 +21,24 @@ jobs:
           REMOTE_USER: ${{ secrets.USERNAME }}
           TARGET: ${{ secrets.TARGET_DIR }}
 
-      - name: Executing remote ssh commands using ssh key
-        uses: appleboy/ssh-action@master
+      - name: Execute remote commands on EC2
+        uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.HOST_DNS }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            sudo apt-get -y update
+            sudo apt-get update -y
             sudo apt-get install -y apache2
-            sudo systemctl start apache2
             sudo systemctl enable apache2
-            cd home
-            sudo mv * /var/www/html
+            sudo systemctl restart apache2
+
+            # Go to uploaded directory
+            cd ${{ secrets.TARGET_DIR }}
+
+            # Move website files to Apache folder
+            sudo cp -r * /var/www/html/
+
+            # Ensure correct permissions
+            sudo chown -R www-data:www-data /var/www/html
+            sudo chmod -R 755 /var/www/html
